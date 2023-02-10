@@ -16,10 +16,15 @@ function getRoom(roomId: number) {
 function getBookingsForThatRoom(roomId: number) {
   return prisma.booking.findMany({ where: { roomId } });
 }
+
+function getBookingsForUser(userId: number) {
+  return prisma.booking.findFirst({ where: { userId }, select: { id: true, Room: true } });
+}
 const bookingRepository = {
   makeReservation,
   getRoom,
-  getBookingsForThatRoom
+  getBookingsForThatRoom,
+  getBookingsForUser,
 };
 
 export default bookingRepository;

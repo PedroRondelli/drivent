@@ -1,4 +1,4 @@
-import { requestError } from "@/errors";
+import { notFoundError, requestError } from "@/errors";
 import bookingRepository from "@/repositories/booking-repository";
 import enrollmentRepository from "@/repositories/enrollment-repository";
 import ticketRepository from "@/repositories/ticket-repository";
@@ -24,6 +24,7 @@ async function bookingPermission(userId: number, roomId: number) {
   }
 
   const room = await bookingRepository.getRoom(roomId);
+
   if (!room) {
     throw requestError(404, "This room does not exist");
   }
@@ -35,8 +36,16 @@ async function bookingPermission(userId: number, roomId: number) {
   }
 }
 
+async function getBooking(userId: number) {
+  const reservation = await bookingRepository.getBookingsForUser(userId);
+
+  if (!reservation) throw notFoundError();
+  return reservation;
+}
+
 const bookingService = {
   makeReservation,
+  getBooking,
 };
 
 export default bookingService;
