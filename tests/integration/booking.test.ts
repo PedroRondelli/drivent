@@ -12,6 +12,8 @@ import {
 import { TicketStatus } from "@prisma/client";
 import bookingRepository from "../../src/repositories/booking-repository/index";
 import { createBooking } from "../factories/booking-factory";
+import faker from "@faker-js/faker";
+import * as jwt from "jsonwebtoken";
 
 const server = supertest(app);
 
@@ -44,6 +46,28 @@ describe("POST /booking", () => {
 
     expect(result.status).toBe(200);
     expect(result.body).toEqual({ bookingId: bookings[0].id });
+  });
+});
+describe("POST /booking(authorizathion errors)", () => {
+  it("should respond with status 401 if no token is given", async () => {
+    const response = await server.post("/booking");
+
+    expect(response.status).toBe(401);
+  });
+  it("should respond with status 401 if given token is not valid", async () => {
+    const token = faker.lorem.word();
+
+    const response = await server.post("/booking").set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(401);
+  });
+  it("should respond with status 401 if there is no session for given token", async () => {
+    const userWithoutSession = await createUser();
+    const token = jwt.sign({ userId: userWithoutSession.id }, process.env.JWT_SECRET);
+
+    const response = await server.post("/booking").set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(401);
   });
 });
 describe("POST /booking (in cases of error)", () => {
@@ -138,5 +162,45 @@ describe("GET /booking", () => {
         updatedAt: booking.Room.updatedAt.toISOString(),
       },
     });
+  });
+});
+describe("GET /booking(authorizathion errors)", () => {
+  it("should respond with status 401 if no token is given", async () => {
+    const response = await server.get("/booking");
+
+    expect(response.status).toBe(401);
+  });
+  it("should respond with status 401 if given token is not valid", async () => {
+    const token = faker.lorem.word();
+
+    const response = await server.get("/booking").set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(401);
+  });
+  it("should respond with status 401 if there is no session for given token", async () => {
+    const userWithoutSession = await createUser();
+    const token = jwt.sign({ userId: userWithoutSession.id }, process.env.JWT_SECRET);
+
+    const response = await server.get("/booking").set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(401);
+  });
+});
+describe("GET /booking(in cases of error)", () => {
+  it("should return status 404 when the user has no reservation", async () => {
+    const user = await createUser();
+    const token = await generateValidToken(user);
+    const enrollment = await createEnrollmentWithAddress(user);
+    const ticketType = await createTicketTypeWithHotel();
+    await createTicket(enrollment.id, ticketType.id, TicketStatus.PAID);
+    const hotel = await createHotel();
+
+    await createRoomWithHotelId(hotel.id);
+
+    const booking = await bookingRepository.getBookingsForUser(user.id);
+
+    const result = await server.get("/booking").set("Authorization", `Bearer ${token}`);
+    expect(result.status).toBe(404);
+    expect(booking).toBe(null);
   });
 });
