@@ -45,10 +45,6 @@ async function getBooking(userId: number) {
 
 async function changeRoom(userId: number, bookingId: number, roomId: number) {
   const reservationId = await changeRoomPermission(userId, roomId);
-  if (reservationId !== bookingId) {
-    console.log("foi aqui");
-    throw notFoundError();
-  }
 
   await bookingRepository.updateReservation(roomId, reservationId);
 }
@@ -57,10 +53,8 @@ async function changeRoomPermission(userId: number, roomId: number) {
   const booking = await getBooking(userId);
   const bookingsForThisRoom = await bookingRepository.getBookingsForThatRoom(roomId);
   if (booking.Room.capacity === bookingsForThisRoom.length) throw requestError(403, "Room is full!");
-  if (!booking) {
-    console.log("Foi aqui caraio");
-    throw requestError(404, "Room does not exists!");
-  }
+  const newRoom = await bookingRepository.getRoom(roomId);
+  if (!newRoom) throw requestError(404, "Room does not exists!");
   return booking.id;
 }
 const bookingService = {

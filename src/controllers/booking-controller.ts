@@ -39,6 +39,7 @@ export async function changeRoom(req: AuthenticatedRequest, res: Response) {
     await bookingService.changeRoom(userId, Number(bookingId), roomId);
     return res.status(200).send({ bookingId: Number(bookingId) });
   } catch (error) {
+    console.log(error);
     if (error.name === "NotFoundError") return res.sendStatus(404);
     return res.sendStatus(error.status);
   }
