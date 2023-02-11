@@ -48,7 +48,7 @@ describe("POST /booking", () => {
     expect(result.body).toEqual({ bookingId: bookings[0].id });
   });
 });
-describe("POST /booking(authorizathion errors)", () => {
+describe("POST /booking(authorization errors)", () => {
   it("should respond with status 401 if no token is given", async () => {
     const response = await server.post("/booking");
 
@@ -135,6 +135,45 @@ describe("POST /booking (in cases of error)", () => {
     expect(result.status).toBe(403);
     expect(bookings.length).toBe(3);
   });
+  it("should return status 402 when ticket does not exists, include hotel or is not paid", async () => {
+    const user = await createUser();
+    const token = await generateValidToken(user);
+    const enrollment = await createEnrollmentWithAddress(user);
+    const ticketType = await createTicketTypeWithHotel();
+    await createTicket(enrollment.id, ticketType.id, TicketStatus.RESERVED);
+    const hotel = await createHotel();
+
+    const room = await createRoomWithHotelId(hotel.id);
+
+    const { id: roomId } = await bookingRepository.getRoom(room.id);
+
+    const body = { roomId };
+
+    const result = await server.post("/booking").send(body).set("Authorization", `Bearer ${token}`);
+
+    const bookings = await bookingRepository.getBookingsForThatRoom(roomId);
+
+    expect(result.status).toBe(402);
+    expect(bookings.length).toBe(0);
+  });
+  it("should return status 404 when enrollment does not exists", async () => {
+    const user = await createUser();
+    const token = await generateValidToken(user);
+    const hotel = await createHotel();
+
+    const room = await createRoomWithHotelId(hotel.id);
+
+    const { id: roomId } = await bookingRepository.getRoom(room.id);
+
+    const body = { roomId };
+
+    const result = await server.post("/booking").send(body).set("Authorization", `Bearer ${token}`);
+
+    const bookings = await bookingRepository.getBookingsForThatRoom(roomId);
+
+    expect(result.status).toBe(404);
+    expect(bookings.length).toBe(0);
+  });
 });
 
 describe("GET /booking", () => {
@@ -164,7 +203,7 @@ describe("GET /booking", () => {
     });
   });
 });
-describe("GET /booking(authorizathion errors)", () => {
+describe("GET /booking(authorization errors)", () => {
   it("should respond with status 401 if no token is given", async () => {
     const response = await server.get("/booking");
 
@@ -204,3 +243,31 @@ describe("GET /booking(in cases of error)", () => {
     expect(booking).toBe(null);
   });
 });
+
+describe("PUT /booking/:bookingId", () => {
+  it("should return status 200 and object with bookingId", async () => {
+    const user = await createUser();
+    const token = await generateValidToken(user);
+    const enrollment = await createEnrollmentWithAddress(user);
+    const ticketType = await createTicketTypeWithHotel();
+    await createTicket(enrollment.id, ticketType.id, TicketStatus.PAID);
+    const hotel = await createHotel();
+
+    const room = await createRoomWithHotelId(hotel.id);
+    const room2 = await createRoomWithHotelId(hotel.id);
+
+    const { id: roomId } = await bookingRepository.getRoom(room.id);
+    const { id: roomId2 } = await bookingRepository.getRoom(room2.id);
+    await createBooking(user.id, roomId);
+
+    const body = { roomId: roomId2 };
+
+    const bookings = await bookingRepository.getBookingsForThatRoom(roomId);
+    const result = await server.put(`/booking/${bookings[0].id}`).send(body).set("Authorization", `Bearer ${token}`);
+
+    expect(result.status).toBe(200);
+    expect(result.body).toEqual({ bookingId: bookings[0].id });
+  });
+});
+// describe("PUT /booking/:bookingId(authorization errors)", () => {});
+// describe("PUT /booking/:bookingId(in cases of error)", () => {});
